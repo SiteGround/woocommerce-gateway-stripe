@@ -11,7 +11,6 @@
  * WC requires at least: 6.8
  * WC tested up to: 7.0
  * Text Domain: woocommerce-gateway-stripe
- * Domain Path: /languages
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -204,7 +203,6 @@ function woocommerce_gateway_stripe() {
 				require_once dirname( __FILE__ ) . '/includes/class-wc-stripe-intent-controller.php';
 				require_once dirname( __FILE__ ) . '/includes/admin/class-wc-stripe-inbox-notes.php';
 				require_once dirname( __FILE__ ) . '/includes/admin/class-wc-stripe-upe-compatibility-controller.php';
-				require_once dirname( __FILE__ ) . '/includes/migrations/class-allowed-payment-request-button-types-update.php';
 				require_once dirname( __FILE__ ) . '/includes/class-wc-stripe-account.php';
 
 				$this->api                           = new WC_Stripe_Connect_API();
@@ -684,23 +682,7 @@ function woocommerce_gateway_stripe() {
 	return $plugin;
 }
 
-add_action( 'plugins_loaded', 'woocommerce_gateway_stripe_init' );
-
-function woocommerce_gateway_stripe_init() {
-	load_plugin_textdomain( 'woocommerce-gateway-stripe', false, plugin_basename( dirname( __FILE__ ) ) . '/languages' );
-
-	if ( ! class_exists( 'WooCommerce' ) ) {
-		add_action( 'admin_notices', 'woocommerce_stripe_missing_wc_notice' );
-		return;
-	}
-
-	if ( version_compare( WC_VERSION, WC_STRIPE_MIN_WC_VER, '<' ) ) {
-		add_action( 'admin_notices', 'woocommerce_stripe_wc_not_supported' );
-		return;
-	}
-
-	woocommerce_gateway_stripe();
-}
+add_action( 'plugins_loaded', 'woocommerce_gateway_stripe' );
 
 /**
  * Add woocommerce_inbox_variant for the Remote Inbox Notification.
