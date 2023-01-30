@@ -32,7 +32,7 @@ class WC_Stripe_Email_Failed_Preorder_Authentication extends WC_Stripe_Email_Fai
 		$this->template_base  = plugin_dir_path( WC_STRIPE_MAIN_FILE ) . 'templates/';
 
 		// Use the "authentication required" hook to add the correct, later hook.
-		add_action( 'wc_gateway_stripe_process_payment_authentication_required', [ $this, 'trigger' ] );
+		// add_action( 'wc_gateway_stripe_process_payment_authentication_required', [ $this, 'trigger' ] );
 
 		if ( isset( $email_classes['WC_Pre_Orders_Email_Pre_Order_Available'] ) ) {
 			$this->original_email = $email_classes['WC_Pre_Orders_Email_Pre_Order_Available'];
