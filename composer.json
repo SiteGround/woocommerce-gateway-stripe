@@ -1,5 +1,5 @@
 {
-    "name": "woocommerce/woocommerce-gateway-stripe",
+    "name": "siteground/woocommerce-gateway-stripe",
     "type": "wordpress-plugin",
     "description": "Take credit card payments on your store using Stripe.",
     "homepage": "https://woocommerce.com/products/woocommerce-gateway-stripe/",
