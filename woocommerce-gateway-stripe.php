@@ -237,8 +237,6 @@ function woocommerce_gateway_stripe() {
 
 				add_filter( 'woocommerce_payment_gateways', [ $this, 'add_gateways' ] );
 				add_filter( 'pre_update_option_woocommerce_stripe_settings', [ $this, 'gateway_settings_update' ], 10, 2 );
-				add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), [ $this, 'plugin_action_links' ] );
-				add_filter( 'plugin_row_meta', [ $this, 'plugin_row_meta' ], 10, 2 );
 
 				// Update the email field position.
 				if ( ! is_admin() ) {
@@ -246,7 +244,7 @@ function woocommerce_gateway_stripe() {
 				}
 
 				// Modify emails emails.
-				add_filter( 'woocommerce_email_classes', [ $this, 'add_emails' ], 20 );
+				// add_filter( 'woocommerce_email_classes', [ $this, 'add_emails' ], 20 );
 
 				if ( version_compare( WC_VERSION, '3.4', '<' ) ) {
 					add_filter( 'woocommerce_get_sections_checkout', [ $this, 'filter_gateway_order_admin' ] );
@@ -335,37 +333,6 @@ function woocommerce_gateway_stripe() {
 				}
 			}
 
-			/**
-			 * Add plugin action links.
-			 *
-			 * @since 1.0.0
-			 * @version 4.0.0
-			 */
-			public function plugin_action_links( $links ) {
-				$plugin_links = [
-					'<a href="admin.php?page=wc-settings&tab=checkout&section=stripe">' . esc_html__( 'Settings', 'woocommerce-gateway-stripe' ) . '</a>',
-				];
-				return array_merge( $plugin_links, $links );
-			}
-
-			/**
-			 * Add plugin action links.
-			 *
-			 * @since 4.3.4
-			 * @param  array  $links Original list of plugin links.
-			 * @param  string $file  Name of current file.
-			 * @return array  $links Update list of plugin links.
-			 */
-			public function plugin_row_meta( $links, $file ) {
-				if ( plugin_basename( __FILE__ ) === $file ) {
-					$row_meta = [
-						'docs'    => '<a href="' . esc_url( apply_filters( 'woocommerce_gateway_stripe_docs_url', 'https://woocommerce.com/document/stripe/' ) ) . '" title="' . esc_attr( __( 'View Documentation', 'woocommerce-gateway-stripe' ) ) . '">' . __( 'Docs', 'woocommerce-gateway-stripe' ) . '</a>',
-						'support' => '<a href="' . esc_url( apply_filters( 'woocommerce_gateway_stripe_support_url', 'https://woocommerce.com/my-account/create-a-ticket?select=18627' ) ) . '" title="' . esc_attr( __( 'Open a support request at WooCommerce.com', 'woocommerce-gateway-stripe' ) ) . '">' . __( 'Support', 'woocommerce-gateway-stripe' ) . '</a>',
-					];
-					return array_merge( $links, $row_meta );
-				}
-				return (array) $links;
-			}
 
 			/**
 			 * Add the gateways to WooCommerce.
@@ -684,21 +651,6 @@ function woocommerce_gateway_stripe() {
 
 add_action( 'plugins_loaded', 'woocommerce_gateway_stripe' );
 
-/**
- * Add woocommerce_inbox_variant for the Remote Inbox Notification.
- *
- * P2 post can be found at https://wp.me/paJDYF-1uJ.
- */
-if ( ! function_exists( 'add_woocommerce_inbox_variant' ) ) {
-	function add_woocommerce_inbox_variant() {
-		$config_name = 'woocommerce_inbox_variant_assignment';
-		if ( false === get_option( $config_name, false ) ) {
-			update_option( $config_name, wp_rand( 1, 12 ) );
-		}
-	}
-}
-register_activation_hook( __FILE__, 'add_woocommerce_inbox_variant' );
-
 function wcstripe_deactivated() {
 	// admin notes are not supported on older versions of WooCommerce.
 	require_once WC_STRIPE_PLUGIN_PATH . '/includes/class-wc-stripe-upe-compatibility.php';
@@ -713,46 +665,6 @@ function wcstripe_deactivated() {
 	}
 }
 register_deactivation_hook( __FILE__, 'wcstripe_deactivated' );
-
-// Hook in Blocks integration. This action is called in a callback on plugins loaded, so current Stripe plugin class
-// implementation is too late.
-add_action( 'woocommerce_blocks_loaded', 'woocommerce_gateway_stripe_woocommerce_block_support' );
-
-function woocommerce_gateway_stripe_woocommerce_block_support() {
-	if ( class_exists( 'Automattic\WooCommerce\Blocks\Payments\Integrations\AbstractPaymentMethodType' ) ) {
-		require_once dirname( __FILE__ ) . '/includes/class-wc-stripe-blocks-support.php';
-		// priority is important here because this ensures this integration is
-		// registered before the WooCommerce Blocks built-in Stripe registration.
-		// Blocks code has a check in place to only register if 'stripe' is not
-		// already registered.
-		add_action(
-			'woocommerce_blocks_payment_method_type_registration',
-			function( Automattic\WooCommerce\Blocks\Payments\PaymentMethodRegistry $payment_method_registry ) {
-				// I noticed some incompatibility with WP 5.x and WC 5.3 when `_wcstripe_feature_upe_settings` is enabled.
-				if ( ! class_exists( 'WC_Stripe_Payment_Request' ) ) {
-					return;
-				}
-
-				$container = Automattic\WooCommerce\Blocks\Package::container();
-				// registers as shared instance.
-				$container->register(
-					WC_Stripe_Blocks_Support::class,
-					function() {
-						if ( class_exists( 'WC_Stripe' ) ) {
-							return new WC_Stripe_Blocks_Support( WC_Stripe::get_instance()->payment_request_configuration );
-						} else {
-							return new WC_Stripe_Blocks_Support();
-						}
-					}
-				);
-				$payment_method_registry->register(
-					$container->get( WC_Stripe_Blocks_Support::class )
-				);
-			},
-			5
-		);
-	}
-}
 
 add_action(
 	'before_woocommerce_init',
