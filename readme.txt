@@ -128,7 +128,12 @@ If you get stuck, you can ask for help in the Plugin Forum.
 
 == Changelog ==
 
+
 = 7.0.1 - 2022-11-11 =
 * Fix - Issue where subscription renewal payments were being charged twice no longer present.
+
+= 7.1.0 - 2023-xx-xx =
+* Fix - Replace some post meta methods with equivalent methods compatible with HPOS.
+
 
 [See changelog for all versions](https://raw.githubusercontent.com/woocommerce/woocommerce-gateway-stripe/trunk/changelog.txt).
