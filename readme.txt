@@ -128,8 +128,8 @@ If you get stuck, you can ask for help in the Plugin Forum.
 
 == Changelog ==
 
-= 7.5.0 - 2023-xx-xx =
-* Fix - Make the gateway unavailable when using it in live mode without SSL.
-* Fix - Remove Stripe Link PRB when disabled from settings.
+= 7.4.1 - 2023-xx-xx =
+* Fix - Add Order Key Validation.
+* Fix - Add sanitization and escaping some outputs.
 
 [See changelog for all versions](https://raw.githubusercontent.com/woocommerce/woocommerce-gateway-stripe/trunk/changelog.txt).
