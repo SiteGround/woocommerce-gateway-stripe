@@ -25,7 +25,7 @@ class WC_Stripe_Email_Failed_Renewal_Authentication extends WC_Stripe_Email_Fail
 		$this->template_base  = plugin_dir_path( WC_STRIPE_MAIN_FILE ) . 'templates/';
 
 		// Triggers the email at the correct hook.
-		// add_action( 'wc_gateway_stripe_process_payment_authentication_required', [ $this, 'trigger' ] );
+		add_action( 'wc_gateway_stripe_process_payment_authentication_required', [ $this, 'trigger' ] );
 
 		if ( isset( $email_classes['WCS_Email_Customer_Renewal_Invoice'] ) ) {
 			$this->original_email = $email_classes['WCS_Email_Customer_Renewal_Invoice'];

@@ -766,6 +766,7 @@ jQuery( function( $ ) {
 		 * @version 4.0.0
 		 */
 		init: function() {
+			debugger;
 			if ( wc_stripe_payment_request_params.is_product_page ) {
 				wc_stripe_payment_request.startPaymentRequest( '' );
 			} else {

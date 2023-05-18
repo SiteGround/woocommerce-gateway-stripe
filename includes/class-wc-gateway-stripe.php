@@ -1057,6 +1057,7 @@ class WC_Gateway_Stripe extends WC_Stripe_Payment_Gateway {
 	 * Enables gateway.
 	 */
 	public function enable() {
+
 		$this->update_option( 'enabled', 'yes' );
 	}
 
