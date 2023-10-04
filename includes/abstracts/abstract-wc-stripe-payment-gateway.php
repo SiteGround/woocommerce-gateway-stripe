@@ -14,6 +14,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 abstract class WC_Stripe_Payment_Gateway extends WC_Payment_Gateway_CC {
 
+    const SG_ECOM_SETTING_STRIPE_NAME = 'sg_ecom_settings_stripe';
+
 	use WC_Stripe_Subscriptions_Trait;
 	use WC_Stripe_Pre_Orders_Trait;
 
@@ -1300,6 +1302,8 @@ abstract class WC_Stripe_Payment_Gateway extends WC_Payment_Gateway_CC {
 			$payment_method_types = [ $prepared_source->source_object->type ];
 		}
 
+        $stripeSettings      = get_option(self::SG_ECOM_SETTING_STRIPE_NAME);
+        $currency = strtolower( $order->get_currency() );
 		$request = [
 			'amount'               => WC_Stripe_Helper::get_stripe_amount( $order->get_total() ),
 			'currency'             => strtolower( $order->get_currency() ),
@@ -1307,7 +1311,12 @@ abstract class WC_Stripe_Payment_Gateway extends WC_Payment_Gateway_CC {
 			'metadata'             => $full_request['metadata'],
 			'capture_method'       => ( 'true' === $full_request['capture'] ) ? 'automatic' : 'manual',
 			'payment_method_types' => $payment_method_types,
-		];
+            'application_fee_amount' => \WC_Stripe_Helper::get_stripe_amount( $order->get_total() * 0.02, strtolower( $currency ) ),
+            'transfer_data'        => [
+                'destination' => $stripeSettings['account_id'],
+            ],
+
+        ];
 
 		$request = WC_Stripe_Helper::add_payment_method_to_request_array( $prepared_source->source, $request );
 
