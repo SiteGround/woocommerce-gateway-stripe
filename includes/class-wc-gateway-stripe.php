@@ -184,17 +184,15 @@ class WC_Gateway_Stripe extends WC_Stripe_Payment_Gateway {
 		global $wp;
 		$user                 = wp_get_current_user();
 		$display_tokenization = $this->supports( 'tokenization' ) && is_checkout() && $this->saved_cards;
-		$total                = WC()->cart->total;
 		$user_email           = '';
 		$description          = $this->get_description();
 		$description          = ! empty( $description ) ? $description : '';
 		$firstname            = '';
 		$lastname             = '';
 
-		// If paying from order, we need to get total from order not cart.
-		if ( isset( $_GET['pay_for_order'] ) && ! empty( $_GET['key'] ) ) { // wpcs: csrf ok.
-			$order      = wc_get_order( wc_clean( $wp->query_vars['order-pay'] ) ); // wpcs: csrf ok, sanitization ok.
-			$total      = $order->get_total();
+		// If paying for order, we need to get email from the order not the user account.
+		if ( parent::is_valid_pay_for_order_endpoint() ) {
+			$order      = wc_get_order( wc_clean( $wp->query_vars['order-pay'] ) );
 			$user_email = $order->get_billing_email();
 		} else {
 			if ( $user->ID ) {
@@ -393,14 +391,6 @@ class WC_Gateway_Stripe extends WC_Stripe_Payment_Gateway {
 				$prepared_source = $this->prepare_source( get_current_user_id(), $force_save_source, $stripe_customer_id );
 			}
 
-			// If we are using a saved payment method that is PaymentMethod (pm_) and not a Source (src_) we need to use
-			// the process_payment() from the UPE gateway which uses the PaymentMethods API instead of Sources API.
-			// This happens when using a saved payment method that was added with the UPE gateway.
-			if ( $this->is_using_saved_payment_method() && ! empty( $prepared_source->source ) && substr( $prepared_source->source, 0, 3 ) === 'pm_' ) {
-				$upe_gateway = new WC_Stripe_UPE_Payment_Gateway();
-				return $upe_gateway->process_payment_with_saved_payment_method( $order_id );
-			}
-
 			$this->maybe_disallow_prepaid_card( $prepared_source->source_object );
 			$this->check_source( $prepared_source );
 			$this->save_source_to_order( $order, $prepared_source );
@@ -457,7 +447,7 @@ class WC_Gateway_Stripe extends WC_Stripe_Payment_Gateway {
 
 						return [
 							'result'   => 'success',
-							'redirect' => $redirect_url,
+							'redirect' => wp_sanitize_redirect( esc_url_raw( $redirect_url ) ),
 						];
 					} else {
 						/**
@@ -506,28 +496,6 @@ class WC_Gateway_Stripe extends WC_Stripe_Payment_Gateway {
 				'result'   => 'fail',
 				'redirect' => '',
 			];
-		}
-	}
-
-	/**
-	 * Saves payment method
-	 *
-	 * @param object $source_object
-	 * @throws WC_Stripe_Exception
-	 */
-	public function save_payment_method( $source_object ) {
-		$user_id  = get_current_user_id();
-		$customer = new WC_Stripe_Customer( $user_id );
-
-		if ( ( $user_id && 'reusable' === $source_object->usage ) ) {
-			$response = $customer->add_source( $source_object->id );
-
-			if ( ! empty( $response->error ) ) {
-				throw new WC_Stripe_Exception( print_r( $response, true ), $this->get_localized_error_message_from_response( $response ) );
-			}
-			if ( is_wp_error( $response ) ) {
-				throw new WC_Stripe_Exception( $response->get_error_message(), $response->get_error_message() );
-			}
 		}
 	}
 
@@ -702,7 +670,7 @@ class WC_Gateway_Stripe extends WC_Stripe_Payment_Gateway {
 		}
 
 		if ( 'requires_payment_method' === $intent->status && isset( $intent->last_payment_error )
-			 && 'authentication_required' === $intent->last_payment_error->code ) {
+			&& 'authentication_required' === $intent->last_payment_error->code ) {
 			$level3_data = $this->get_level3_data_from_order( $order );
 			$intent      = WC_Stripe_API::request_with_level3_data(
 				[
@@ -819,14 +787,22 @@ class WC_Gateway_Stripe extends WC_Stripe_Payment_Gateway {
 		$verification_url = add_query_arg( $query_params, WC_AJAX::get_endpoint( 'wc_stripe_verify_intent' ) );
 
 		if ( isset( $result['payment_intent_secret'] ) ) {
-			$redirect = sprintf( '#confirm-pi-%s:%s', $result['payment_intent_secret'], rawurlencode( $verification_url ) );
+			$redirect_signature = sprintf(
+				'#confirm-pi-%s:%s',
+				$result['payment_intent_secret'],
+				rawurlencode( wp_sanitize_redirect( esc_url_raw( $verification_url ) ) )
+			);
 		} elseif ( isset( $result['setup_intent_secret'] ) ) {
-			$redirect = sprintf( '#confirm-si-%s:%s', $result['setup_intent_secret'], rawurlencode( $verification_url ) );
+			$redirect_signature = sprintf(
+				'#confirm-si-%s:%s',
+				$result['setup_intent_secret'],
+				rawurlencode( wp_sanitize_redirect( esc_url_raw( $verification_url ) ) )
+			);
 		}
 
 		return [
 			'result'   => 'success',
-			'redirect' => $redirect,
+			'redirect' => $redirect_signature, // This signature will be used by JS to redirect to the proper URL.
 		];
 	}
 
@@ -952,7 +928,7 @@ class WC_Gateway_Stripe extends WC_Stripe_Payment_Gateway {
 		if ( isset( $_GET['wc-stripe-confirmation'] ) && isset( $wp->query_vars['order-pay'] ) && $wp->query_vars['order-pay'] == $order->get_id() ) {
 			$pay_url = add_query_arg( 'wc-stripe-confirmation', 1, $pay_url );
 		}
-		return $pay_url;
+		return esc_url_raw( $pay_url );
 	}
 
 	/**
@@ -1091,31 +1067,53 @@ class WC_Gateway_Stripe extends WC_Stripe_Payment_Gateway {
 	 */
 	public function validate_account_statement_descriptor_field( $param, $value, $max_length ) {
 		// Since the value is escaped, and we are saving in a place that does not require escaping, apply stripslashes.
-		$value = trim( stripslashes( $value ) );
-		$field = __( 'customer bank statement', 'woocommerce-gateway-stripe' );
+		$value          = trim( stripslashes( $value ) );
+		$error_messages = [];
 
-		if ( 'short_statement_descriptor' === $param ) {
-			$field = __( 'shortened customer bank statement', 'woocommerce-gateway-stripe' );
+		// Has a valid length.
+		if ( ! preg_match( '/^.{5,' . $max_length . '}$/', $value ) ) {
+			$error_messages[] = sprintf(
+				/* translators: Number of the maximum characters allowed */
+				__( '- Has between 5 and %s characters', 'woocommerce-gateway-stripe' ),
+				$max_length
+			);
 		}
 
-		// Validation can be done with a single regex but splitting into multiple for better readability.
-		$valid_length   = '/^.{5,' . $max_length . '}$/';
-		$has_one_letter = '/^.*[a-zA-Z]+/';
-		$no_specials    = '/^[^*"\'<>]*$/';
+		// Contains at least one letter.
+		if ( ! preg_match( '/^.*[a-zA-Z]+/', $value ) ) {
+			$error_messages[] = __( '- Contains at least one letter', 'woocommerce-gateway-stripe' );
+		}
 
-		if (
-			! preg_match( $valid_length, $value ) ||
-			! preg_match( $has_one_letter, $value ) ||
-			! preg_match( $no_specials, $value )
-		) {
-			throw new InvalidArgumentException(
-				sprintf(
-					/* translators: %1 field name, %2 Number of the maximum characters allowed */
-					__( 'The %1$s is invalid. The bank statement must contain only Latin characters, be between 5 and %2$u characters, contain at least one letter, and not contain any of the special characters: \' " * &lt; &gt;', 'woocommerce-gateway-stripe' ),
-					$field,
-					$max_length
-				)
+		// Doesn't contain any of the specified special characters.
+		if ( ! preg_match( '/^[^*"\'<>]*$/', $value ) ) {
+			$error_messages[] = __( '- Does not contain any of the following special characters: \' " * &lt; &gt;', 'woocommerce-gateway-stripe' );
+		}
+
+		/*
+		 * Doesn't contain a non-Latin character.
+		 * We're not matching accentuated Latin characters, numbers, whitespace, or special characters.
+		 */
+		if ( preg_match( '/[^a-zA-Z0-9\s\x{00C0}-\x{00FF}\p{P}]/u', $value, $matches ) ) {
+			$error_messages[] = __( '- Contains only Latin characters', 'woocommerce-gateway-stripe' );
+		}
+
+		// Display the validation errors if any was found.
+		if ( ! empty( $error_messages ) ) {
+			$field = __( 'customer bank statement', 'woocommerce-gateway-stripe' );
+
+			if ( 'short_statement_descriptor' === $param ) {
+				$field = __( 'shortened customer bank statement', 'woocommerce-gateway-stripe' );
+			}
+
+			$error_message = sprintf(
+				/* translators: %1 The field name, %2 <br> tag, %3 Validation error messages */
+				__( 'The %1$s is invalid. Please make sure it: %2$s%3$s', 'woocommerce-gateway-stripe' ),
+				$field,
+				'<br>',
+				implode( '<br>', $error_messages )
 			);
+
+			throw new InvalidArgumentException( $error_message );
 		}
 
 		return $value;
