@@ -10,6 +10,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class WC_Stripe_API {
 
+    const SG_ECOM_SETTING_STRIPE_NAME = 'sg_ecom_settings_stripe';
+
 	/**
 	 * Stripe API Endpoint
 	 */
@@ -83,12 +85,14 @@ class WC_Stripe_API {
 	public static function get_headers() {
 		$user_agent = self::get_user_agent();
 		$app_info   = $user_agent['application'];
-
-		$headers = apply_filters(
+        $stripeSettings      = get_option(self::SG_ECOM_SETTING_STRIPE_NAME);
+        $account_id = $stripeSettings['account_id']?? null;
+        $headers = apply_filters(
 			'woocommerce_stripe_request_headers',
 			[
 				'Authorization'  => 'Basic ' . base64_encode( self::get_secret_key() . ':' ),
 				'Stripe-Version' => self::STRIPE_API_VERSION,
+                'Stripe-Account' => $account_id
 			]
 		);
 
