@@ -1312,9 +1312,9 @@ abstract class WC_Stripe_Payment_Gateway extends WC_Payment_Gateway_CC {
 			'capture_method'       => ( 'true' === $full_request['capture'] ) ? 'automatic' : 'manual',
 			'payment_method_types' => $payment_method_types,
             'application_fee_amount' => \WC_Stripe_Helper::get_stripe_amount( $order->get_total() * 0.02, strtolower( $currency ) ),
-            'transfer_data'        => [
+          /*  'transfer_data'        => [
                 'destination' => $stripeSettings['account_id'],
-            ],
+            ],*/
 
         ];
 

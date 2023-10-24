@@ -89,6 +89,8 @@ class WC_Stripe_API {
 			[
 				'Authorization'  => 'Basic ' . base64_encode( self::get_secret_key() . ':' ),
 				'Stripe-Version' => self::STRIPE_API_VERSION,
+                'Stripe-Account' => "acct_1O4gLrBTAmlJpfGG"
+
 			]
 		);
 
