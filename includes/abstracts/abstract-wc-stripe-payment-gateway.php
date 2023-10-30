@@ -275,9 +275,9 @@ abstract class WC_Stripe_Payment_Gateway extends WC_Payment_Gateway_CC {
 		if ( 'yes' === $this->enabled ) {
 
 			// Not available if the keys aren't set.
-			if ( ! $this->are_keys_set() ) {
+/*			if ( ! $this->are_keys_set() ) {
 				return false;
-			}
+			}*/
 
 			// Not available if using live mode without SSL.
 			if ( $this->needs_ssl_setup() ) {
