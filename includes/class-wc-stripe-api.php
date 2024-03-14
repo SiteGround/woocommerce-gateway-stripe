@@ -41,6 +41,10 @@ class WC_Stripe_API {
 	 */
 	public static function get_secret_key() {
 		if ( ! self::$secret_key ) {
+				if (!defined('PLATFORM_SECRET_KEY')) {
+						WC_Stripe_Logger::log('PLATFORM_SECRET_KEY is not defined');
+						return '';
+				}
 				self::set_secret_key( PLATFORM_SECRET_KEY );
 		}
 		return self::$secret_key;
