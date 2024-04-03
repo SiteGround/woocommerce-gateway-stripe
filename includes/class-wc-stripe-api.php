@@ -85,6 +85,7 @@ class WC_Stripe_API {
 		$app_info   = $user_agent['application'];
         $stripeSettings      = get_option(self::SG_ECOM_SETTING_STRIPE_NAME);
         $account_id = $stripeSettings['account_id']?? null;
+        $onboard_completed = wc_string_to_bool($stripeSettings['onboard_completed'] ?? false);
 
         $headers = [
             'Authorization'  => 'Basic ' . base64_encode( self::get_secret_key() . ':' ),
@@ -92,7 +93,7 @@ class WC_Stripe_API {
 
         ];
 
-        if ($account_id) {
+        if ($account_id && $onboard_completed) {
             $headers['Stripe-Account'] =  $account_id;
         }
 
